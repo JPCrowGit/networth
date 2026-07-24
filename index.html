@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Net Worth Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #006300;
+
+    --series-blue:    #2a78d6;
+    --series-green:   #008300;
+    --series-magenta: #e87ba4;
+    --series-yellow:  #eda100;
+
+    --band-fill:      rgba(42,120,214,0.15);
+    --area-fill:      rgba(42,120,214,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #0ca30c;
+
+      --series-blue:    #3987e5;
+      --series-green:   #008300;
+      --series-magenta: #d55181;
+      --series-yellow:  #c98500;
+
+      --band-fill:      rgba(57,135,229,0.18);
+      --area-fill:      rgba(57,135,229,0.12);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.4;
+  }
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 20px 64px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0 0 24px;
+  }
+  section.card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  section.card h2 {
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  .card-note {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 0 0 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  input[type="text"], input[type="number"], input[type="url"] {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--page);
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+  .field {
+    margin-bottom: 12px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 16px;
+  }
+  .checkbox-row input { width: auto; }
+  .checkbox-row label { margin: 0; font-size: 14px; color: var(--text-primary); }
+  button {
+    background: var(--series-blue);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  .status {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+  .status.error { color: #d03b3b; }
+  canvas {
+    max-height: 320px;
+  }
+  .hero {
+    text-align: center;
+    padding: 8px 0 20px;
+  }
+  .hero .value {
+    font-size: 48px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .hero .label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  details {
+    margin-top: 12px;
+  }
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  table th, table td {
+    text-align: right;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  table th:first-child, table td:first-child { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 10px;
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Net Worth Tracker</h1>
+  <p class="subtitle">Trend view from the sheet, plus a Monte Carlo retirement projection.</p>
+
+  <section class="card">
+    <h2>Data source</h2>
+    <p class="card-note">
+      In the Google Sheet: File &gt; Share &gt; Publish to web &gt; select the sheet tab &gt; format
+      <strong>Comma-separated values (.csv)</strong> &gt; Publish. Paste the resulting URL below.
+    </p>
+    <div class="field">
+      <label for="sheetUrl">Published CSV URL</label>
+      <input type="url" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+    </div>
+    <button id="loadBtn">Load data</button>
+    <div class="status" id="loadStatus"></div>
+  </section>
+
+  <section class="card">
+    <h2>Net worth over time</h2>
+    <p class="card-note">Actual values from the sheet.</p>
+    <canvas id="netWorthChart"></canvas>
+  </section>
+
+  <section class="card">
+    <h2>Asset composition</h2>
+    <p class="card-note">Vanguard, checking, home equity, and car value per year (home value / mortgage are context only, not summed).</p>
+    <canvas id="compositionChart"></canvas>
+    <details>
+      <summary>Show data table</summary>
+      <div id="compositionTable"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>What-if: retirement Monte Carlo</h2>
+    <p class="card-note">Runs 2,000 simulated paths of random annual returns to show a range of outcomes, not just one line.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="startingNW">Starting net worth ($)</label>
+        <input type="number" id="startingNW">
+      </div>
+      <div class="field">
+        <label for="currentAge">Current age</label>
+        <input type="number" id="currentAge" placeholder="e.g. 34">
+      </div>
+      <div class="field">
+        <label for="retireAge">Retirement age</label>
+        <input type="number" id="retireAge" placeholder="e.g. 65">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="monthlyContribution">Monthly contribution ($)</label>
+        <input type="number" id="monthlyContribution" placeholder="e.g. 2000">
+      </div>
+      <div class="field">
+        <label for="meanReturn">Expected annual return (%)</label>
+        <input type="number" id="meanReturn" value="10" step="0.1">
+      </div>
+      <div class="field">
+        <label for="stdevReturn">Return volatility, stdev (%)</label>
+        <input type="number" id="stdevReturn" value="18" step="0.1">
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="stopInvesting">
+      <label for="stopInvesting">Stop investing today (zero out contributions for the whole simulation)</label>
+    </div>
+    <button id="runBtn">Run simulation</button>
+    <div class="status" id="simStatus"></div>
+
+    <div class="hero" id="goalStat" style="display:none;">
+      <div class="value" id="goalStatValue"></div>
+      <div class="label" id="goalStatLabel"></div>
+    </div>
+
+    <canvas id="monteCarloChart"></canvas>
+    <div class="legend" id="mcLegend"></div>
+    <details>
+      <summary>Show data table</summary>
+      <div id="monteCarloTable"></div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const STORAGE_KEY = 'networth-tracker-v1';
+  const TRIALS = 2000;
+  const GOAL = 1000000;
+
+  const css = getComputedStyle(document.documentElement);
+  function cssVar(name) { return css.getPropertyValue(name).trim(); }
+
+  let sheetRows = [];
+  let netWorthChart, compositionChart, monteCarloChart;
+
+  // ---------- persistence (config only, not sheet data) ----------
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveState(patch) {
+    try {
+      const current = loadState();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.assign(current, patch)));
+    } catch (e) { /* ignore */ }
+  }
+
+  function restoreForm() {
+    const s = loadState();
+    if (s.sheetUrl) document.getElementById('sheetUrl').value = s.sheetUrl;
+    if (s.currentAge != null) document.getElementById('currentAge').value = s.currentAge;
+    if (s.retireAge != null) document.getElementById('retireAge').value = s.retireAge;
+    if (s.monthlyContribution != null) document.getElementById('monthlyContribution').value = s.monthlyContribution;
+    if (s.meanReturn != null) document.getElementById('meanReturn').value = s.meanReturn;
+    if (s.stdevReturn != null) document.getElementById('stdevReturn').value = s.stdevReturn;
+    if (s.stopInvesting != null) document.getElementById('stopInvesting').checked = s.stopInvesting;
+  }
+
+  // ---------- CSV parsing ----------
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else {
+          field += c;
+        }
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ',') {
+        row.push(field); field = '';
+      } else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        rows.push(row); row = [];
+      } else {
+        field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(cell => cell.trim() !== ''));
+  }
+
+  function parseMoney(raw) {
+    if (raw == null) return null;
+    const cleaned = String(raw).replace(/[$,]/g, '').trim();
+    if (cleaned === '' || cleaned.toUpperCase() === 'N/A') return null;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  function findColumn(header, needle) {
+    return header.findIndex(h => h.toLowerCase().replace(/\s+/g, '').includes(needle));
+  }
+
+  function toSheetRows(csvText) {
+    const table = parseCsv(csvText);
+    if (!table.length) return [];
+    const header = table[0].map(h => h.trim());
+    const idx = {
+      date: findColumn(header, 'date'),
+      vanguard: findColumn(header, 'vanguard'),
+      checking: findColumn(header, 'checking'),
+      homeEquity: findColumn(header, 'homeequity'),
+      carValue: findColumn(header, 'carvalue'),
+      netWorth: findColumn(header, 'networth'),
+    };
+    const out = [];
+    for (let i = 1; i < table.length; i++) {
+      const r = table[i];
+      const dateRaw = (r[idx.date] || '').trim();
+      const m = dateRaw.match(/^(\d{2})\/(\d{4})$/);
+      if (!m) continue; // skips "Proj. *" rows and anything malformed
+      out.push({
+        month: parseInt(m[1], 10),
+        year: parseInt(m[2], 10),
+        label: dateRaw,
+        vanguard: parseMoney(r[idx.vanguard]) || 0,
+        checking: parseMoney(r[idx.checking]) || 0,
+        homeEquity: parseMoney(r[idx.homeEquity]) || 0,
+        carValue: parseMoney(r[idx.carValue]) || 0,
+        netWorth: parseMoney(r[idx.netWorth]),
+      });
+    }
+    out.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+    return out;
+  }
+
+  // ---------- historical charts ----------
+
+  function renderHistoricalCharts(rows) {
+    const labels = rows.map(r => String(r.year));
+    const netWorthValues = rows.map(r => r.netWorth);
+
+    if (netWorthChart) netWorthChart.destroy();
+    netWorthChart = new Chart(document.getElementById('netWorthChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Net worth',
+          data: netWorthValues,
+          borderColor: cssVar('--series-blue'),
+          backgroundColor: cssVar('--area-fill'),
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: cssVar('--series-blue'),
+          pointBorderColor: cssVar('--surface-1'),
+          pointBorderWidth: 2,
+          fill: true,
+          tension: 0.15,
+        }],
+      },
+      options: baseChartOptions({ legend: false, currency: true }),
+    });
+
+    if (compositionChart) compositionChart.destroy();
+    compositionChart = new Chart(document.getElementById('compositionChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Vanguard', data: rows.map(r => r.vanguard), backgroundColor: cssVar('--series-blue') },
+          { label: 'Checking', data: rows.map(r => r.checking), backgroundColor: cssVar('--series-green') },
+          { label: 'Home equity', data: rows.map(r => r.homeEquity), backgroundColor: cssVar('--series-magenta') },
+          { label: 'Car value', data: rows.map(r => r.carValue), backgroundColor: cssVar('--series-yellow') },
+        ],
+      },
+      options: Object.assign(baseChartOptions({ legend: true, currency: true }), {
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: cssVar('--text-muted') } },
+          y: { stacked: true, grid: { color: cssVar('--gridline') }, ticks: { color: cssVar('--text-muted'), callback: v => fmtCompact(v) } },
+        },
+      }),
+    });
+
+    renderTable('compositionTable',
+      ['Year', 'Vanguard', 'Checking', 'Home equity', 'Car value', 'Net worth'],
+      rows.map(r => [r.year, fmtMoney(r.vanguard), fmtMoney(r.checking), fmtMoney(r.homeEquity), fmtMoney(r.carValue), fmtMoney(r.netWorth)])
+    );
+  }
+
+  function baseChartOptions({ legend, currency }) {
+    return {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: !!legend, position: 'bottom', labels: { color: cssVar('--text-secondary'), boxWidth: 10 } },
+        tooltip: {
+          backgroundColor: cssVar('--surface-1'),
+          titleColor: cssVar('--text-primary'),
+          bodyColor: cssVar('--text-secondary'),
+          borderColor: cssVar('--border'),
+          borderWidth: 1,
+          callbacks: currency ? { label: (ctx) => `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } : undefined,
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: cssVar('--text-muted') } },
+        y: { grid: { color: cssVar('--gridline') }, ticks: { color: cssVar('--text-muted'), callback: v => fmtCompact(v) } },
+      },
+    };
+  }
+
+  // ---------- formatting ----------
+
+  function fmtMoney(n) {
+    if (n == null || isNaN(n)) return '—';
+    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  }
+
+  function fmtCompact(n) {
+    if (n == null || isNaN(n)) return '';
+    const abs = Math.abs(n);
+    if (abs >= 1e6) return '$' + (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (abs >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+    return '$' + n;
+  }
+
+  function renderTable(containerId, headers, rowsData) {
+    const el = document.getElementById(containerId);
+    const thead = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    const tbody = rowsData.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
+    el.innerHTML = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  // ---------- Monte Carlo ----------
+
+  function randNormal(mean, stdev) {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return mean + z * stdev;
+  }
+
+  function runSimulation({ startingNW, monthlyContribution, stopInvesting, meanReturn, stdevReturn, years }) {
+    const annualContribution = stopInvesting ? 0 : monthlyContribution * 12;
+    const paths = [];
+    const crossingYear = new Array(TRIALS).fill(null);
+    for (let t = 0; t < TRIALS; t++) {
+      const path = [startingNW];
+      let balance = startingNW;
+      let crossed = balance >= GOAL ? 0 : null;
+      for (let y = 1; y <= years; y++) {
+        const r = randNormal(meanReturn, stdevReturn);
+        balance = balance * (1 + r) + annualContribution;
+        path.push(balance);
+        if (crossed === null && balance >= GOAL) crossed = y;
+      }
+      paths.push(path);
+      crossingYear[t] = crossed;
+    }
+    return { paths, crossingYear };
+  }
+
+  function percentile(sortedArr, pct) {
+    const idx = (pct / 100) * (sortedArr.length - 1);
+    const lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return sortedArr[lo];
+    return sortedArr[lo] + (sortedArr[hi] - sortedArr[lo]) * (idx - lo);
+  }
+
+  function percentilesByYear(paths, years) {
+    const p10 = [], p50 = [], p90 = [];
+    for (let y = 0; y <= years; y++) {
+      const vals = paths.map(p => p[y]).sort((a, b) => a - b);
+      p10.push(percentile(vals, 10));
+      p50.push(percentile(vals, 50));
+      p90.push(percentile(vals, 90));
+    }
+    return { p10, p50, p90 };
+  }
+
+  function renderMonteCarlo({ startingNW, currentAge, retireAge, monthlyContribution, meanReturnPct, stdevReturnPct, stopInvesting }) {
+    const years = Math.max(1, Math.min(60, retireAge - currentAge));
+    const { paths, crossingYear } = runSimulation({
+      startingNW,
+      monthlyContribution,
+      stopInvesting,
+      meanReturn: meanReturnPct / 100,
+      stdevReturn: stdevReturnPct / 100,
+      years,
+    });
+    const { p10, p50, p90 } = percentilesByYear(paths, years);
+    const labels = [];
+    for (let y = 0; y <= years; y++) labels.push(currentAge ? String(currentAge + y) : `Year ${y}`);
+
+    const reached = crossingYear.filter(c => c !== null).length;
+    const pct = Math.round((reached / TRIALS) * 100);
+    const goalStat = document.getElementById('goalStat');
+    goalStat.style.display = 'block';
+    document.getElementById('goalStatValue').textContent = `${pct}%`;
+    document.getElementById('goalStatLabel').textContent =
+      `of ${TRIALS.toLocaleString()} simulated paths reach $1,000,000 by age ${retireAge}`;
+
+    if (monteCarloChart) monteCarloChart.destroy();
+    monteCarloChart = new Chart(document.getElementById('monteCarloChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '90th percentile', data: p90,
+            borderColor: 'transparent', pointRadius: 0, fill: false,
+          },
+          {
+            label: '10th–90th percentile range', data: p10,
+            borderColor: 'transparent', pointRadius: 0,
+            backgroundColor: cssVar('--band-fill'), fill: '-1',
+          },
+          {
+            label: 'Median', data: p50,
+            borderColor: cssVar('--series-blue'), backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 0, fill: false, tension: 0.1,
+          },
+        ],
+      },
+      options: baseChartOptions({ legend: false, currency: true }),
+    });
+
+    const legend = document.getElementById('mcLegend');
+    legend.innerHTML = `
+      <span><span class="swatch" style="background:${cssVar('--series-blue')}"></span>Median</span>
+      <span><span class="swatch" style="background:${cssVar('--band-fill')}"></span>10th–90th percentile range</span>
+    `;
+
+    renderTable('monteCarloTable',
+      ['Age', '10th pct', 'Median', '90th pct'],
+      labels.map((l, i) => [l, fmtMoney(p10[i]), fmtMoney(p50[i]), fmtMoney(p90[i])])
+    );
+  }
+
+  // ---------- wiring ----------
+
+  document.getElementById('loadBtn').addEventListener('click', async () => {
+    const url = document.getElementById('sheetUrl').value.trim();
+    const statusEl = document.getElementById('loadStatus');
+    if (!url) { statusEl.textContent = 'Paste the published CSV URL first.'; statusEl.classList.add('error'); return; }
+    statusEl.classList.remove('error');
+    statusEl.textContent = 'Loading…';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      sheetRows = toSheetRows(text);
+      if (!sheetRows.length) throw new Error('No rows parsed — check the sheet columns/format.');
+      renderHistoricalCharts(sheetRows);
+      const latest = sheetRows[sheetRows.length - 1];
+      document.getElementById('startingNW').value = Math.round(latest.netWorth);
+      statusEl.textContent = `Loaded ${sheetRows.length} rows. Latest: ${latest.label}, net worth ${fmtMoney(latest.netWorth)}.`;
+      saveState({ sheetUrl: url });
+    } catch (err) {
+      statusEl.classList.add('error');
+      statusEl.textContent = `Couldn't load that URL (${err.message}).`;
+    }
+  });
+
+  document.getElementById('runBtn').addEventListener('click', () => {
+    const startingNW = parseFloat(document.getElementById('startingNW').value);
+    const currentAge = parseInt(document.getElementById('currentAge').value, 10);
+    const retireAge = parseInt(document.getElementById('retireAge').value, 10);
+    const monthlyContribution = parseFloat(document.getElementById('monthlyContribution').value) || 0;
+    const meanReturnPct = parseFloat(document.getElementById('meanReturn').value);
+    const stdevReturnPct = parseFloat(document.getElementById('stdevReturn').value);
+    const stopInvesting = document.getElementById('stopInvesting').checked;
+    const statusEl = document.getElementById('simStatus');
+
+    if (isNaN(startingNW) || isNaN(currentAge) || isNaN(retireAge)) {
+      statusEl.classList.add('error');
+      statusEl.textContent = 'Fill in starting net worth, current age, and retirement age.';
+      return;
+    }
+    if (retireAge <= currentAge) {
+      statusEl.classList.add('error');
+      statusEl.textContent = 'Retirement age must be after current age.';
+      return;
+    }
+    statusEl.classList.remove('error');
+    statusEl.textContent = '';
+
+    renderMonteCarlo({ startingNW, currentAge, retireAge, monthlyContribution, meanReturnPct, stdevReturnPct, stopInvesting });
+
+    saveState({ currentAge, retireAge, monthlyContribution, meanReturn: meanReturnPct, stdevReturn: stdevReturnPct, stopInvesting });
+  });
+
+  restoreForm();
+  if (document.getElementById('sheetUrl').value) {
+    document.getElementById('loadBtn').click();
+  }
+})();
+</script>
+</body>
+</html>
