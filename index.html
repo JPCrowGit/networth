@@ -187,6 +187,34 @@
     border-radius: 2px;
     margin-right: 6px;
   }
+  .swr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 4px 0 20px;
+  }
+  .swr-tile {
+    background: var(--page);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .swr-tile .swr-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .swr-tile .swr-annual {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .swr-tile .swr-monthly {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
 </style>
 </head>
 <body>
@@ -266,6 +294,27 @@
     <div class="hero" id="goalStat" style="display:none;">
       <div class="value" id="goalStatValue"></div>
       <div class="label" id="goalStatLabel"></div>
+    </div>
+
+    <div id="swrSection" style="display:none;">
+      <p class="card-note" id="swrCaption"></p>
+      <div class="swr-grid">
+        <div class="swr-tile">
+          <div class="swr-label">10th percentile</div>
+          <div class="swr-annual" id="swrP10Annual"></div>
+          <div class="swr-monthly" id="swrP10Monthly"></div>
+        </div>
+        <div class="swr-tile">
+          <div class="swr-label">Median</div>
+          <div class="swr-annual" id="swrP50Annual"></div>
+          <div class="swr-monthly" id="swrP50Monthly"></div>
+        </div>
+        <div class="swr-tile">
+          <div class="swr-label">90th percentile</div>
+          <div class="swr-annual" id="swrP90Annual"></div>
+          <div class="swr-monthly" id="swrP90Monthly"></div>
+        </div>
+      </div>
     </div>
 
     <canvas id="monteCarloChart"></canvas>
@@ -541,6 +590,24 @@
     return { p10, p50, p90 };
   }
 
+  const SWR = 0.04;
+
+  function renderSwr({ p10End, p50End, p90End, retireAge }) {
+    document.getElementById('swrSection').style.display = 'block';
+    document.getElementById('swrCaption').textContent =
+      `At a 4% safe withdrawal rate, based on net worth at age ${retireAge}:`;
+    const tiles = [
+      ['swrP10', p10End],
+      ['swrP50', p50End],
+      ['swrP90', p90End],
+    ];
+    tiles.forEach(([prefix, netWorth]) => {
+      const annual = netWorth * SWR;
+      document.getElementById(`${prefix}Annual`).textContent = `${fmtMoney(annual)}/yr`;
+      document.getElementById(`${prefix}Monthly`).textContent = `${fmtMoney(annual / 12)}/mo`;
+    });
+  }
+
   function renderMonteCarlo({ startingNW, currentAge, retireAge, monthlyContribution, meanReturnPct, stdevReturnPct, stopInvesting }) {
     const years = Math.max(1, Math.min(60, retireAge - currentAge));
     const { paths, crossingYear } = runSimulation({
@@ -562,6 +629,8 @@
     document.getElementById('goalStatValue').textContent = `${pct}%`;
     document.getElementById('goalStatLabel').textContent =
       `of ${TRIALS.toLocaleString()} simulated paths reach $1,000,000 by age ${retireAge}`;
+
+    renderSwr({ p10End: p10[years], p50End: p50[years], p90End: p90[years], retireAge });
 
     if (monteCarloChart) monteCarloChart.destroy();
     monteCarloChart = new Chart(document.getElementById('monteCarloChart'), {
